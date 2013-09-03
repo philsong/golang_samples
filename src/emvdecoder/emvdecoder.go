@@ -1,11 +1,9 @@
 package main
 
 import (
-	"bufio"
 	"encoding/hex"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -13,85 +11,120 @@ import (
 func main() {
 	defer func() {
 		str := recover()
-		fmt.Println(str)
+		if str != nil {
+			fmt.Println(str)
+		}
 	}()
 
-	//var input string
-	//fmt.Scanln(&input)
 	//godir()
 	//gowalk()
 	//readTerminalLog()
 
-	fmt.Println("emv decoder V0.02 by Philsong@techtrex.com", "\nPls send suggestion to me, thanks")
+	fmt.Println("emv decoder V0.03 by Philsong@techtrex.com", "\nPls send suggestion to me, thanks")
 	fmt.Println("\n------------------------\nemv TAG support list in below:")
 
-	fmt.Println("Card side:")
-	fmt.Println("1:AUC(support bits analysis)")
-	fmt.Println("2:TVR(support bits analysis)")
+	type Prompt struct {
+		tip1st     string
+		tip2nd     string
+		tlvdatalen int
+		bits       [][8]string
+	}
+	emvdecoder := [10]Prompt{
+		{("1:AUC(support bits analysis)"), "Please enter a AUC value: ", 2, make([][8]string, 2)},
+		{("2:TVR(support bits analysis)"), "Please enter a TVR value: ", 5, make([][8]string, 5)},
+		{("3:TSI"), "Please enter a TSI value: ", 2, make([][8]string, 2)},
+		{("4:CVR"), "Please enter a CVR value: ", 2, make([][8]string, 2)},
+		{("5:AIP"), "Please enter a AIP value: ", 2, make([][8]string, 2)},
 
-	fmt.Println("3:TSI")
-	fmt.Println("4:CVR")
-	fmt.Println("5:AIP")
+		{("6:TC"), "Please enter a TC value: ", 3, make([][8]string, 3)},
+		{("7:ATC"), "Please enter a ATC value: ", 5, make([][8]string, 5)},
+		{("8:CVM"), "Please enter a CVM value: ", 3, make([][8]string, 3)},
+		{("9:Issuer Script Results"), "Please enter a Issuer Script Results value: ", 5, make([][8]string, 5)},
+		{("10:Authorisation Response Code"), "Please enter a Authorisation Response Code value: ", 2, make([][8]string, 2)},
+	}
 
-	fmt.Println("Terminal side:")
-	fmt.Println("6:TC")
-	fmt.Println("7:ATC")
-	fmt.Println("8:CVM")
-	fmt.Println("9:Issuer Script Results")
-	fmt.Println("10:Authorisation Response Code")
+	for _, value := range emvdecoder {
+		fmt.Println(value.tip1st)
+	}
 
-	value := Input("\nPlease enter a EMV index in above: ")
+	fmt.Print("Please enter a valid index in above:")
+	var input string
+	fmt.Scanln(&input)
 
-	trimmed := strings.TrimSpace(value)
-	//fmt.Printf("item %s!\n", trimmed)
+	trimmed := strings.TrimSpace(input)
 	item, _ := strconv.Atoi(trimmed)
 
-	var tlvvalue string
-	switch {
-	case item == 1:
-		tlvvalue = Input("Please enter a AUC value: ")
-	case item == 2:
-		tlvvalue = Input("Please enter a TVR value: ")
-	case item < 11:
-		tlvvalue = Input("Please enter a emv value: ")
-	default:
+	if item > 0 && item <= len(emvdecoder) {
+		fmt.Println(emvdecoder[item-1].tip2nd)
+	} else {
 		fmt.Println("Please enter a valid index!")
 		return
 	}
 
-	tlvdata := strings.TrimSpace(tlvvalue)
+	fmt.Scanln(&input)
+	tlvdata := strings.TrimSpace(input)
 	tlvdata = strings.Replace(tlvdata, " ", "", -1)
-	fmt.Printf("tlvdata str value[%s]\n", tlvdata)
+	//fmt.Printf("tlvdata str value[%s]\n", tlvdata)
+
+	if len(tlvdata) != emvdecoder[item-1].tlvdatalen*2 {
+		fmt.Printf("wrong data, must be %d bytes\n\n", emvdecoder[item-1].tlvdatalen)
+		return
+	}
 
 	tlvbytes, _ := hex.DecodeString(tlvdata)
 	fmt.Println("tlvbytes mem value", tlvbytes)
 	fmt.Printf("tlvbytes hex value 0x%08x\n", tlvbytes)
 
-	printTLV(item, tlvbytes)
+	fmt.Println("-------------------------我是分割线--------------------------")
 
-	//Input("press return to exit\n")
-}
-
-func godir() {
-	dir, err := os.Open(".")
-	if err != nil {
+	switch item {
+	case 1:
+		emvdecoder[item-1].bits = initAUC()
+	case 2:
+		emvdecoder[item-1].bits = initTVR()
+	case 3:
+		emvdecoder[item-1].bits = initTSI()
+	case 4:
+		emvdecoder[item-1].bits = initCVR()
+	case 5:
+		emvdecoder[item-1].bits = initAIP()
+	case 6:
+		emvdecoder[item-1].bits = initTC()
+	case 7:
+		emvdecoder[item-1].bits = initATC()
+	case 8:
+		emvdecoder[item-1].bits = initCVR()
+	case 9:
+		emvdecoder[item-1].bits = initCVR()
+	case 10:
+		emvdecoder[item-1].bits = initCVR()
+	default:
 		return
 	}
-	defer dir.Close()
-	fileInfos, err := dir.Readdir(-1)
-	if err != nil {
-		return
+
+	for i, v := range tlvbytes {
+		//fmt.Printf("BYTE[%d] base16 is 0x%02x\n", i, v)
+		fmt.Printf("BYTE[%d] %08b\n", i+1, v)
+
+		printElement(emvdecoder[item-1].bits[i], v)
 	}
-	for _, fi := range fileInfos {
-		fmt.Println(fi.Name())
-	}
+
+	fmt.Println("-------------------------the end---------------------------")
 }
 
-func gowalk() {
-	filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
-		fmt.Println(path)
-		return nil
-	})
+func printElement(tvr_elements [8]string, v uint8) {
+	for j := 0; j < 8; j++ {
+		var shiftNum uint32 = uint32(7 - j)
+		//fmt.Printf("shift[%d]\n", shiftNum)
+		var mask uint8 = 0x01 << shiftNum
+		//fmt.Println("mask", mask)
+		fmt.Print(j, ":  ")
+		if v&mask == mask {
+			fmt.Println(tvr_elements[j])
+		} else {
+			fmt.Println("--------------")
+		}
+	}
 }
 
 func readTerminalLog() {
@@ -127,15 +160,8 @@ func writeTerminalLog(str string) {
 	file.WriteString(str)
 }
 
-func Input(str string) string {
-	print(str)
-	reader := bufio.NewReader(os.Stdin)
-	input, _ := reader.ReadString('\n')
-	return input
-}
-
-func initAUC() [2][8]string {
-	var elements [2][8]string
+func initAUC() [][8]string {
+	var elements [][8]string = make([][8]string, 2)
 
 	index := 0
 	elements[index][0] = "Valid for domestic cash transactions "
@@ -161,8 +187,8 @@ func initAUC() [2][8]string {
 }
 
 //TVR data
-func initTVR() [5][8]string {
-	var tvr_elements [5][8]string
+func initTVR() [][8]string {
+	var tvr_elements [][8]string = make([][8]string, 5)
 
 	index := 0
 	tvr_elements[index][0] = "Offline data authentication was not performed"
@@ -217,50 +243,189 @@ func initTVR() [5][8]string {
 	return tvr_elements
 }
 
-func printElement(tvr_elements [8]string, v uint8) {
-	for j := 0; j < 8; j++ {
-		var shiftNum uint32 = uint32(7 - j)
-		//fmt.Printf("shift[%d]\n", shiftNum)
-		var mask uint8 = 0x01 << shiftNum
-		//fmt.Println("mask", mask)
-		fmt.Print(j, ":  ")
-		if v&mask == mask {
-			fmt.Println(tvr_elements[j])
-		} else {
-			fmt.Println("--------------")
-		}
-	}
+func initTSI() [][8]string {
+	var elements [][8]string = make([][8]string, 2)
+
+	index := 0
+	elements[index][0] = "Offline data authentication was performed  "
+	elements[index][1] = "Cardholder verification was performed "
+	elements[index][2] = "Card risk management was performed  "
+	elements[index][3] = "Issuer authentication was performed "
+	elements[index][4] = "Terminal risk management was performed "
+	elements[index][5] = "Script processing was performed "
+	elements[index][6] = "RFU"
+	elements[index][7] = "RFU"
+
+	index = 1
+	elements[index][0] = "RFU"
+	elements[index][1] = "RFU"
+	elements[index][2] = "RFU"
+	elements[index][3] = "RFU"
+	elements[index][4] = "RFU"
+	elements[index][5] = "RFU"
+	elements[index][6] = "RFU"
+	elements[index][7] = "RFU"
+
+	return elements
 }
 
-func printTLV(item int, tlvbytes []byte) {
-	fmt.Println("-------------------------我是分割线--------------------------")
+func initCVR() [][8]string {
+	var elements [][8]string = make([][8]string, 2)
 
-	tlvNotes := make([][8]string, 5)
-	switch item {
-	case 1:
-		if len(tlvbytes) != 2 {
-			//fmt.Println("wrong data, must be 2 bytes\n\n")
-			panic("wrong data, must be 2 bytes\n\n")
-			//return
-		}
-		var auc [2][8]string = initAUC()
-		//tlvNotes
-		tlvNotes = auc[:]
-	case 2:
-		if len(tlvbytes) != 5 {
-			fmt.Println("wrong data, must be 5 bytes\n\n")
-			return
-		}
-		var tvr [5][8]string = initTVR()
-		tlvNotes = tvr[:]
-	}
+	index := 0
+	elements[index][0] = "RFU"
+	elements[index][1] = "RFU"
+	elements[index][2] = "RFU"
+	elements[index][3] = "RFU"
+	elements[index][4] = "RFU"
+	elements[index][5] = "RFU"
+	elements[index][6] = "RFU"
+	elements[index][7] = "RFU"
 
-	for i, v := range tlvbytes {
-		//fmt.Printf("BYTE[%d] base16 is 0x%02x\n", i, v)
-		fmt.Printf("BYTE[%d] %08b\n", i+1, v)
+	index = 1
+	elements[index][0] = "RFU"
+	elements[index][1] = "RFU"
+	elements[index][2] = "RFU"
+	elements[index][3] = "RFU"
+	elements[index][4] = "RFU"
+	elements[index][5] = "RFU"
+	elements[index][6] = "RFU"
+	elements[index][7] = "RFU"
 
-		printElement(tlvNotes[i], v)
-	}
+	return elements
+}
 
-	fmt.Println("-------------------------the end---------------------------")
+/*
+Fail cardholder verification if this CVM is unsuccessful
+Apply succeeding CV Rule if this CVM is unsuccessful
+Fail CVM processing
+Plaintext PIN verification performed by ICC
+Enciphered PIN verified online
+Plaintext PIN verification
+performed by ICC and signature (paper)
+Enciphered PIN verification performed by ICC
+Enciphered PIN verification performed by ICC and signature (paper)
+Values in the range 000110-011101 reserved for future use by this specification
+Signature (paper)
+No CVM required
+Values in the range 100000-101111 reserved for use by the individual payment systems
+Values in the range 110000-111110 reserved for use by the issuer
+This value is not available for use
+*/
+func initAIP() [][8]string {
+	var elements [][8]string = make([][8]string, 2)
+
+	index := 0
+	elements[index][0] = "RFU"
+	elements[index][1] = "SDA supported "
+	elements[index][2] = "DDA supported"
+	elements[index][3] = "Cardholder verification is supported "
+	elements[index][4] = "Terminal risk management is to be performed "
+	elements[index][5] = "Issuer authentication is supported"
+	elements[index][6] = "RFU"
+	elements[index][7] = "CDA supported "
+
+	index = 1
+	elements[index][0] = "RFU"
+	elements[index][1] = "RFU"
+	elements[index][2] = "RFU"
+	elements[index][3] = "RFU"
+	elements[index][4] = "RFU"
+	elements[index][5] = "RFU"
+	elements[index][6] = "RFU"
+	elements[index][7] = "RFU"
+
+	return elements
+}
+
+func initTC() [][8]string {
+	var tvr_elements [][8]string = make([][8]string, 3)
+
+	index := 0
+	tvr_elements[index][0] = "Manual key entry "
+	tvr_elements[index][1] = "Magnetic stripe "
+	tvr_elements[index][2] = "IC with contacts"
+	tvr_elements[index][3] = "RFU"
+	tvr_elements[index][4] = "RFU"
+	tvr_elements[index][5] = "RFU"
+	tvr_elements[index][6] = "RFU"
+	tvr_elements[index][7] = "RFU"
+
+	index = 1
+	tvr_elements[index][0] = "Plaintext PIN for ICC verification"
+	tvr_elements[index][1] = "Enciphered PIN for online verification   "
+	tvr_elements[index][2] = "Signature (paper)"
+	tvr_elements[index][3] = "Enciphered PIN for offline verification "
+	tvr_elements[index][4] = "No CVM Required  "
+	tvr_elements[index][5] = "RFU"
+	tvr_elements[index][6] = "RFU"
+	tvr_elements[index][7] = "RFU"
+
+	index = 2
+	tvr_elements[index][0] = "SDA"
+	tvr_elements[index][1] = "DDA"
+	tvr_elements[index][2] = "Card capture  "
+	tvr_elements[index][3] = "RFU"
+	tvr_elements[index][4] = "CDA"
+	tvr_elements[index][5] = "RFU"
+	tvr_elements[index][6] = "RFU"
+	tvr_elements[index][7] = "RFU"
+
+	return tvr_elements
+}
+
+func initATC() [][8]string {
+	var tvr_elements [][8]string = make([][8]string, 5)
+
+	index := 0
+	tvr_elements[index][0] = "Cash"
+	tvr_elements[index][1] = "Goods"
+	tvr_elements[index][2] = "Services"
+	tvr_elements[index][3] = "Cashback"
+	tvr_elements[index][4] = "Inquiry"
+	tvr_elements[index][5] = "Transfer"
+	tvr_elements[index][6] = "Payment"
+	tvr_elements[index][7] = "Administrative"
+
+	index = 1
+	tvr_elements[index][0] = "Cash Deposit"
+	tvr_elements[index][1] = "RFU"
+	tvr_elements[index][2] = "RFU"
+	tvr_elements[index][3] = "RFU"
+	tvr_elements[index][4] = "RFU"
+	tvr_elements[index][5] = "RFU"
+	tvr_elements[index][6] = "RFU"
+	tvr_elements[index][7] = "RFU"
+
+	index = 2
+	tvr_elements[index][0] = "Numeric keys "
+	tvr_elements[index][1] = "Alphabetic and special characters keys  "
+	tvr_elements[index][2] = "Command keys  "
+	tvr_elements[index][3] = "Function keys  "
+	tvr_elements[index][4] = "RFU"
+	tvr_elements[index][5] = "RFU"
+	tvr_elements[index][6] = "RFU"
+	tvr_elements[index][7] = "RFU"
+
+	index = 3
+	tvr_elements[index][0] = "Print, attendant "
+	tvr_elements[index][1] = "Print, cardholder "
+	tvr_elements[index][2] = "Display, attendant "
+	tvr_elements[index][3] = "Display, cardholder "
+	tvr_elements[index][4] = "RFU"
+	tvr_elements[index][5] = "RFU"
+	tvr_elements[index][6] = "Code table 10"
+	tvr_elements[index][7] = "Code table 9"
+
+	index = 4
+	tvr_elements[index][0] = "Code table 8"
+	tvr_elements[index][1] = "Code table 7"
+	tvr_elements[index][2] = "Code table 6"
+	tvr_elements[index][3] = "Code table 5"
+	tvr_elements[index][4] = "Code table 4"
+	tvr_elements[index][5] = "Code table 3"
+	tvr_elements[index][6] = "Code table 2"
+	tvr_elements[index][7] = "Code table 1"
+
+	return tvr_elements
 }
