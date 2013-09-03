@@ -29,12 +29,13 @@ import (
 )
 
 func main() {
-	fmt.Println("emv decoder V0.01 by Philsong@techtrex.com", "\nPls send suggestion to me, thanks")
+	fmt.Println("emv decoder V0.02 by Philsong@techtrex.com", "\nPls send suggestion to me, thanks")
 	fmt.Println("\n------------------------\nemv TAG support list in below:")
 
 	fmt.Println("Card side:")
-	fmt.Println("1:AUC")
-	fmt.Println("2:TVR")
+	fmt.Println("1:AUC(support bits analysis)")
+	fmt.Println("2:TVR(support bits analysis)")
+
 	fmt.Println("3:TSI")
 	fmt.Println("4:CVR")
 	fmt.Println("5:AIP")
@@ -73,40 +74,9 @@ func main() {
 	fmt.Println("tlvbytes mem value", tlvbytes)
 	fmt.Printf("tlvbytes hex value 0x%08x\n", tlvbytes)
 
-	for i, v := range tlvbytes {
-		//fmt.Printf("BYTE[%d] base16 is 0x%02x\n", i, v)
-		fmt.Printf("BYTE[%d] base2 is %08b\n", i, v)
+	printTLV(item, tlvbytes)
 
-		if item == 2 {
-			if i == 0 {
-				tvr_elements := make(map[int]string)
-
-				tvr_elements[0] = "Offline data authentication was not performed"
-				tvr_elements[1] = "SDA failed"
-				tvr_elements[2] = "ICC data missing"
-				tvr_elements[3] = "Card appears on terminal exception file"
-				tvr_elements[4] = "DDA failed"
-				tvr_elements[5] = "CDA failed"
-				tvr_elements[6] = "RFU"
-				tvr_elements[7] = "RFU"
-
-				for j := 0; j < 8; j++ {
-					var shiftNum uint32 = uint32(7 - j)
-					//fmt.Printf("shift[%d]\n", shiftNum)
-					var mask uint8 = 0x01 << shiftNum
-					//fmt.Println("mask", mask)
-					fmt.Print(j, ":  ")
-					if v&mask == mask {
-						fmt.Println(tvr_elements[j])
-					} else {
-						fmt.Println("--------------")
-					}
-				}
-			}
-		}
-	}
-
-	Input("press return to exit\n")
+	//Input("press return to exit\n")
 }
 
 func Input(str string) string {
@@ -114,4 +84,133 @@ func Input(str string) string {
 	reader := bufio.NewReader(os.Stdin)
 	input, _ := reader.ReadString('\n')
 	return input
+}
+
+func initAUC() [2][8]string {
+	var elements [2][8]string
+
+	index := 0
+	elements[index][0] = "Valid for domestic cash transactions "
+	elements[index][1] = "Valid for international cash transactions "
+	elements[index][2] = "Valid for domestic goods "
+	elements[index][3] = "Valid for international goods "
+	elements[index][4] = "Valid for domestic services "
+	elements[index][5] = "Valid for international services "
+	elements[index][6] = "Valid at ATMs "
+	elements[index][7] = "Valid at terminals other than ATMs "
+
+	index = 1
+	elements[index][0] = "Domestic cashback allowed "
+	elements[index][1] = "International cashback allowed "
+	elements[index][2] = "Application not yet effective"
+	elements[index][3] = "Requested service not allowed for card product "
+	elements[index][4] = "RFU"
+	elements[index][5] = "RFU"
+	elements[index][6] = "RFU"
+	elements[index][7] = "RFU"
+
+	return elements
+}
+
+func initTVR() [5][8]string {
+	var tvr_elements [5][8]string
+
+	index := 0
+	tvr_elements[index][0] = "Offline data authentication was not performed"
+	tvr_elements[index][1] = "SDA failed"
+	tvr_elements[index][2] = "ICC data missing"
+	tvr_elements[index][3] = "Card appears on terminal exception file"
+	tvr_elements[index][4] = "DDA failed"
+	tvr_elements[index][5] = "CDA failed"
+	tvr_elements[index][6] = "RFU"
+	tvr_elements[index][7] = "RFU"
+
+	index = 1
+	tvr_elements[index][0] = "ICC and terminal have different application versions"
+	tvr_elements[index][1] = "Expired application "
+	tvr_elements[index][2] = "Application not yet effective"
+	tvr_elements[index][3] = "Requested service not allowed for card product "
+	tvr_elements[index][4] = "New card "
+	tvr_elements[index][5] = "RFU"
+	tvr_elements[index][6] = "RFU"
+	tvr_elements[index][7] = "RFU"
+
+	index = 2
+	tvr_elements[index][0] = "Cardholder verification was not "
+	tvr_elements[index][1] = "Unrecognised CVM "
+	tvr_elements[index][2] = "PIN Try Limit exceeded "
+	tvr_elements[index][3] = "PIN entry required and PIN pad "
+	tvr_elements[index][4] = "not present or not working "
+	tvr_elements[index][5] = "Online PIN entered "
+	tvr_elements[index][6] = "RFU"
+	tvr_elements[index][7] = "RFU"
+
+	index = 3
+	tvr_elements[index][0] = "Transaction exceeds floor limit "
+	tvr_elements[index][1] = "Lower consecutive offline limit"
+	tvr_elements[index][2] = "Upper consecutive offline limit "
+	tvr_elements[index][3] = "Transaction selected randomly for online processing "
+	tvr_elements[index][4] = "Merchant forced transaction online"
+	tvr_elements[index][5] = "RFU"
+	tvr_elements[index][6] = "RFU"
+	tvr_elements[index][7] = "RFU"
+
+	index = 4
+	tvr_elements[index][0] = "Default TDOL used "
+	tvr_elements[index][1] = "Issuer authentication failed "
+	tvr_elements[index][2] = "Script processing failed before final GENERATE AC"
+	tvr_elements[index][3] = "Script processing failed after final GENERATE AC"
+	tvr_elements[index][4] = "RFU"
+	tvr_elements[index][5] = "RFU"
+	tvr_elements[index][6] = "RFU"
+	tvr_elements[index][7] = "RFU"
+
+	return tvr_elements
+}
+
+func printElement(tvr_elements [8]string, v uint8) {
+	for j := 0; j < 8; j++ {
+		var shiftNum uint32 = uint32(7 - j)
+		//fmt.Printf("shift[%d]\n", shiftNum)
+		var mask uint8 = 0x01 << shiftNum
+		//fmt.Println("mask", mask)
+		fmt.Print(j, ":  ")
+		if v&mask == mask {
+			fmt.Println(tvr_elements[j])
+		} else {
+			fmt.Println("--------------")
+		}
+	}
+}
+
+func printTLV(item int, tlvbytes []byte) {
+	fmt.Println("-------------------------我是分割线--------------------------")
+
+	tlvNotes := make([][8]string, 5)
+	switch item {
+	case 1:
+		if len(tlvbytes) != 2 {
+			fmt.Println("wrong data, must be 2 bytes")
+			return
+		}
+		var auc [2][8]string = initAUC()
+		//tlvNotes
+		tlvNotes = auc[:]
+	case 2:
+		if len(tlvbytes) != 5 {
+			fmt.Println("wrong data, must be 5 bytes")
+			return
+		}
+		var tvr [5][8]string = initTVR()
+		tlvNotes = tvr[:]
+	}
+
+	for i, v := range tlvbytes {
+		//fmt.Printf("BYTE[%d] base16 is 0x%02x\n", i, v)
+		fmt.Printf("BYTE[%d] %08b\n", i+1, v)
+
+		printElement(tlvNotes[i], v)
+	}
+
+	fmt.Println("-------------------------the end---------------------------")
 }

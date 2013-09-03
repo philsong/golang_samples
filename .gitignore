@@ -7,4 +7,6 @@
 
 *.tar.gz
 *.exe
+*.exe~
+*.zip*
 
