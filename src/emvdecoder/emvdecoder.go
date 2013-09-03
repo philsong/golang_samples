@@ -1,22 +1,3 @@
-/*
-package main
-
-import (
-	"fmt"
-	//"strings"
-)
-
-func main() {
-	//get input
-	var emvdata string
-	fmt.Scanf("%X", emvdata)
-	//parser
-	fmt.Println(emvdata)
-
-	//put putput
-}
-
-*/
 package main
 
 import (
@@ -24,11 +5,23 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
 
 func main() {
+	defer func() {
+		str := recover()
+		fmt.Println(str)
+	}()
+
+	//var input string
+	//fmt.Scanln(&input)
+	//godir()
+	//gowalk()
+	//readTerminalLog()
+
 	fmt.Println("emv decoder V0.02 by Philsong@techtrex.com", "\nPls send suggestion to me, thanks")
 	fmt.Println("\n------------------------\nemv TAG support list in below:")
 
@@ -79,6 +72,61 @@ func main() {
 	//Input("press return to exit\n")
 }
 
+func godir() {
+	dir, err := os.Open(".")
+	if err != nil {
+		return
+	}
+	defer dir.Close()
+	fileInfos, err := dir.Readdir(-1)
+	if err != nil {
+		return
+	}
+	for _, fi := range fileInfos {
+		fmt.Println(fi.Name())
+	}
+}
+
+func gowalk() {
+	filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
+		fmt.Println(path)
+		return nil
+	})
+}
+
+func readTerminalLog() {
+	file, err := os.Open("test 01.txt")
+	if err != nil {
+		// handle the error here
+		return
+	}
+	defer file.Close()
+	// get the file size
+	stat, err := file.Stat()
+	if err != nil {
+		return
+	}
+	// read the file
+	bs := make([]byte, stat.Size())
+	_, err = file.Read(bs)
+	if err != nil {
+		return
+	}
+	str := string(bs)
+	writeTerminalLog(str)
+	fmt.Println(str)
+}
+
+func writeTerminalLog(str string) {
+	file, err := os.Create("test.txt")
+	if err != nil {
+		// handle the error here
+		return
+	}
+	defer file.Close()
+	file.WriteString(str)
+}
+
 func Input(str string) string {
 	print(str)
 	reader := bufio.NewReader(os.Stdin)
@@ -112,6 +160,7 @@ func initAUC() [2][8]string {
 	return elements
 }
 
+//TVR data
 func initTVR() [5][8]string {
 	var tvr_elements [5][8]string
 
@@ -190,15 +239,16 @@ func printTLV(item int, tlvbytes []byte) {
 	switch item {
 	case 1:
 		if len(tlvbytes) != 2 {
-			fmt.Println("wrong data, must be 2 bytes")
-			return
+			//fmt.Println("wrong data, must be 2 bytes\n\n")
+			panic("wrong data, must be 2 bytes\n\n")
+			//return
 		}
 		var auc [2][8]string = initAUC()
 		//tlvNotes
 		tlvNotes = auc[:]
 	case 2:
 		if len(tlvbytes) != 5 {
-			fmt.Println("wrong data, must be 5 bytes")
+			fmt.Println("wrong data, must be 5 bytes\n\n")
 			return
 		}
 		var tvr [5][8]string = initTVR()
