@@ -3,79 +3,98 @@ package main
 import (
 	"encoding/hex"
 	"fmt"
+	"html/template"
+	"log"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
 )
 
-func main() {
-	defer func() {
-		str := recover()
-		if str != nil {
-			fmt.Println(str)
-		}
-	}()
+type Prompt struct {
+	Index      int
+	Tip1st     string
+	tip2nd     string
+	tlvdatalen int
+	bits       [][8]string
+}
 
-	//godir()
-	//gowalk()
+var emvdecoder = [10]Prompt{
+	{1, ("1:AUC"), "Please enter a AUC value: ", 2, make([][8]string, 2)},
+	{2, ("2:TVR"), "Please enter a TVR value: ", 5, make([][8]string, 5)},
+	{3, ("3:TSI"), "Please enter a TSI value: ", 2, make([][8]string, 2)},
+	{4, ("4:CVR(TBD)"), "Please enter a CVR value: ", 2, make([][8]string, 2)},
+	{5, ("5:AIP"), "Please enter a AIP value: ", 2, make([][8]string, 2)},
+
+	{6, ("6:TC"), "Please enter a TC value: ", 3, make([][8]string, 3)},
+	{7, ("7:ATC"), "Please enter a ATC value: ", 5, make([][8]string, 5)},
+	{8, ("8:CVM(TBD)"), "Please enter a CVM value: ", 3, make([][8]string, 3)},
+	{9, ("9:Issuer Script Results(TBD)"), "Please enter a Issuer Script Results value: ", 5, make([][8]string, 5)},
+	{10, ("10:Authorisation Response Code(TBD)"), "Please enter a Authorisation Response Code value: ", 2, make([][8]string, 2)},
+}
+
+func checkError(w http.ResponseWriter, err error) {
+	if err != nil {
+		fmt.Fprintf(w, "Fatal error ", err.Error())
+		os.Exit(1)
+	}
+}
+
+func index(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm() //解析url传递的参数，对于POST则解析响应包的主体（request body）
+	//注意:如果没有调用ParseForm方法，下面无法获取表单的数据
+	t, err := template.ParseFiles("index.html")
+	checkError(w, err)
+
+	err = t.Execute(w, emvdecoder)
+	checkError(w, err)
+}
+
+func parse(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	fmt.Println("idx:", r.Form["idx"])
+	fmt.Println("data:", r.Form["data"])
+
+	parseEMV(w, r.FormValue("idx"), r.FormValue("data"))
+}
+
+func main() {
+	http.HandleFunc("/", index)      //设置访问的路由
+	http.HandleFunc("/parse", parse) //设置访问的路由
+
+	err := http.ListenAndServe(":9090", nil) //设置监听的端口
+
+	if err != nil {
+		log.Fatal("ListenAndServe: ", err)
+	}
+}
+
+func parseEMV(w http.ResponseWriter, idx string, data string) {
 	//readTerminalLog()
 
-	fmt.Println("emv decoder V0.03 by Philsong@techtrex.com", "\nPls send suggestion to me, thanks")
-	fmt.Println("\n------------------------\nemv TAG support list in below:")
-
-	type Prompt struct {
-		tip1st     string
-		tip2nd     string
-		tlvdatalen int
-		bits       [][8]string
-	}
-	emvdecoder := [10]Prompt{
-		{("1:AUC(support bits analysis)"), "Please enter a AUC value: ", 2, make([][8]string, 2)},
-		{("2:TVR(support bits analysis)"), "Please enter a TVR value: ", 5, make([][8]string, 5)},
-		{("3:TSI"), "Please enter a TSI value: ", 2, make([][8]string, 2)},
-		{("4:CVR"), "Please enter a CVR value: ", 2, make([][8]string, 2)},
-		{("5:AIP"), "Please enter a AIP value: ", 2, make([][8]string, 2)},
-
-		{("6:TC"), "Please enter a TC value: ", 3, make([][8]string, 3)},
-		{("7:ATC"), "Please enter a ATC value: ", 5, make([][8]string, 5)},
-		{("8:CVM"), "Please enter a CVM value: ", 3, make([][8]string, 3)},
-		{("9:Issuer Script Results"), "Please enter a Issuer Script Results value: ", 5, make([][8]string, 5)},
-		{("10:Authorisation Response Code"), "Please enter a Authorisation Response Code value: ", 2, make([][8]string, 2)},
-	}
-
-	for _, value := range emvdecoder {
-		fmt.Println(value.tip1st)
-	}
-
-	fmt.Print("Please enter a valid index in above:")
-	var input string
-	fmt.Scanln(&input)
-
-	trimmed := strings.TrimSpace(input)
+	trimmed := strings.TrimSpace(idx)
 	item, _ := strconv.Atoi(trimmed)
 
-	if item > 0 && item <= len(emvdecoder) {
-		fmt.Println(emvdecoder[item-1].tip2nd)
-	} else {
-		fmt.Println("Please enter a valid index!")
+	if item < 1 || item > len(emvdecoder) {
+		fmt.Fprintln(w, "Please enter a valid index!")
+		fmt.Fprintln(w, "<a href='/login'>return back</a>")
 		return
 	}
 
-	fmt.Scanln(&input)
-	tlvdata := strings.TrimSpace(input)
+	tlvdata := strings.TrimSpace(data)
 	tlvdata = strings.Replace(tlvdata, " ", "", -1)
 	//fmt.Printf("tlvdata str value[%s]\n", tlvdata)
 
 	if len(tlvdata) != emvdecoder[item-1].tlvdatalen*2 {
-		fmt.Printf("wrong data, must be %d bytes\n\n", emvdecoder[item-1].tlvdatalen)
+		fmt.Fprintf(w, "wrong data, must be %d bytes\n\n", emvdecoder[item-1].tlvdatalen)
 		return
 	}
 
 	tlvbytes, _ := hex.DecodeString(tlvdata)
-	fmt.Println("tlvbytes mem value", tlvbytes)
-	fmt.Printf("tlvbytes hex value 0x%08x\n", tlvbytes)
+	fmt.Fprintln(w, "tlvbytes mem value", tlvbytes)
+	fmt.Fprintf(w, "tlvbytes hex value 0x%08x\n", tlvbytes)
 
-	fmt.Println("-------------------------我是分割线--------------------------")
+	fmt.Fprintln(w, "-------------------------我是分割线--------------------------")
 
 	switch item {
 	case 1:
@@ -104,25 +123,25 @@ func main() {
 
 	for i, v := range tlvbytes {
 		//fmt.Printf("BYTE[%d] base16 is 0x%02x\n", i, v)
-		fmt.Printf("BYTE[%d] %08b\n", i+1, v)
+		fmt.Fprintf(w, "BYTE[%d] %08b\n", i+1, v)
 
-		printElement(emvdecoder[item-1].bits[i], v)
+		printElement(w, emvdecoder[item-1].bits[i], v)
 	}
 
-	fmt.Println("-------------------------the end---------------------------")
+	fmt.Fprintln(w, "-------------------------the end---------------------------")
 }
 
-func printElement(tvr_elements [8]string, v uint8) {
+func printElement(w http.ResponseWriter, tvr_elements [8]string, v uint8) {
 	for j := 0; j < 8; j++ {
 		var shiftNum uint32 = uint32(7 - j)
 		//fmt.Printf("shift[%d]\n", shiftNum)
 		var mask uint8 = 0x01 << shiftNum
-		//fmt.Println("mask", mask)
-		fmt.Print(j, ":  ")
+		//fmt.Fprintf(w, "mask", mask)
+		fmt.Fprint(w, j, ":  ")
 		if v&mask == mask {
-			fmt.Println(tvr_elements[j])
+			fmt.Fprintln(w, tvr_elements[j])
 		} else {
-			fmt.Println("--------------")
+			fmt.Fprintln(w, "--------------")
 		}
 	}
 }
@@ -147,7 +166,7 @@ func readTerminalLog() {
 	}
 	str := string(bs)
 	writeTerminalLog(str)
-	fmt.Println(str)
+	fmt.Printf(str)
 }
 
 func writeTerminalLog(str string) {

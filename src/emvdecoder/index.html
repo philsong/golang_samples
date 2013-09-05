@@ -1,0 +1,21 @@
+<html>
+<head>
+<title>emv decoder V0.04 web version by Philsong@techtrex.com</title>
+</head>
+<body>
+emv decoder<p>Pls send suggestion to me, thanks <p>
+------------------------ <p>
+emv TAG support list in below, pls select one:<p>
+
+<form action="/parse" method="POST">
+	
+		{{range .}}
+			<input type="radio" name="idx" value={{.Index}} />{{.Tip1st}}<br/>
+		{{end}}
+<br/>
+pls input emv data in log, then click "parse" button<br/><br/>	<input type="text" name="data">
+	<input type="submit" value="parse"/>
+</form>
+
+</body>
+</html>
