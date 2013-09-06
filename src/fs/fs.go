@@ -13,8 +13,17 @@ func main() {
 
 	http.Handle("/", http.FileServer(http.Dir("./")))
 
-	conn, _ := net.Dial("udp", "baidu.com:80")
+	conn, err := net.Dial("udp", "baidu.com:80")
+	//conn, err := net.Dial("tcp", "google.com:80")
+	var ipaddr string
+	if err != nil {
+		// handle error
+		ipaddr = "ip"
+	} else {
+		ipaddr = strings.TrimSpace(strings.Split(conn.LocalAddr().String(), ":")[0])
+	}
+	fmt.Printf("others can access your directly %s via open http://%s:8123\n in internet browser, report bugs to philsong@techtrex.com", file, ipaddr)
 	defer conn.Close()
-	fmt.Printf("others can access your directly %s via open http://%s:8123\n in internet browser, report bugs to philsong@techtrex.com", file, strings.TrimSpace(strings.Split(conn.LocalAddr().String(), ":")[0]))
+
 	http.ListenAndServe(":8123", nil)
 }
