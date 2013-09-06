@@ -92,7 +92,7 @@ func parseEMV(w http.ResponseWriter, idx string, data string) {
 
 	tlvbytes, _ := hex.DecodeString(tlvdata)
 	fmt.Fprintln(w, "tlvbytes mem value", tlvbytes)
-	fmt.Fprintf(w, "tlvbytes hex value 0x%08x\n", tlvbytes)
+	fmt.Fprintf(w, "tlvbytes hex value 0x%02x\n", tlvbytes)
 
 	fmt.Fprintln(w, "-------------------------我是分割线--------------------------")
 
