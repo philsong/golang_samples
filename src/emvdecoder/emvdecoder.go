@@ -14,7 +14,7 @@ import (
 type Prompt struct {
 	Index      int
 	Tip1st     string
-	tip2nd     string
+	Tip2nd     string
 	tlvdatalen int
 	bits       [][8]string
 }
@@ -26,17 +26,17 @@ type Emvresult struct {
 }
 
 var emvdecoder = [10]Prompt{
-	{1, ("1:AUC"), "Please enter a AUC value: ", 2, make([][8]string, 2)},
-	{2, ("2:TVR"), "Please enter a TVR value: ", 5, make([][8]string, 5)},
-	{3, ("3:TSI"), "Please enter a TSI value: ", 2, make([][8]string, 2)},
-	{4, ("4:CVR(TBD)"), "Please enter a CVR value: ", 2, make([][8]string, 2)},
-	{5, ("5:AIP"), "Please enter a AIP value: ", 2, make([][8]string, 2)},
+	{1, ("9F07 - AUC"), "Please enter a AUC value: ", 2, make([][8]string, 2)},
+	{2, ("95 - TVR"), "Please enter a TVR value: ", 5, make([][8]string, 5)},
+	{3, ("9B - TSI"), "Please enter a TSI value: ", 2, make([][8]string, 2)},
+	{4, ("9F34 - CVR(TBD)"), "Please enter a CVR value: ", 2, make([][8]string, 2)},
+	{5, ("82 - AIP"), "Please enter a AIP value: ", 2, make([][8]string, 2)},
 
-	{6, ("6:TC"), "Please enter a TC value: ", 3, make([][8]string, 3)},
-	{7, ("7:ATC"), "Please enter a ATC value: ", 5, make([][8]string, 5)},
-	{8, ("8:CVM(TBD)"), "Please enter a CVM value: ", 3, make([][8]string, 3)},
-	{9, ("9:Issuer Script Results(TBD)"), "Please enter a Issuer Script Results value: ", 5, make([][8]string, 5)},
-	{10, ("10:Authorisation Response Code(TBD)"), "Please enter a Authorisation Response Code value: ", 2, make([][8]string, 2)},
+	{6, ("9F33 - TC"), "Please enter a TC value: ", 3, make([][8]string, 3)},
+	{7, ("9F40 - ATC"), "Please enter a ATC value: ", 5, make([][8]string, 5)},
+	{8, ("CVM(TBD)"), "Please enter a CVM value: ", 3, make([][8]string, 3)},
+	{9, ("Issuer Script Results(TBD)"), "Please enter a Issuer Script Results value: ", 5, make([][8]string, 5)},
+	{10, ("Authorisation Response Code(TBD)"), "Please enter a Authorisation Response Code value: ", 2, make([][8]string, 2)},
 }
 
 func checkError(w http.ResponseWriter, err error) {
@@ -47,8 +47,8 @@ func checkError(w http.ResponseWriter, err error) {
 }
 
 func index(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm() //解析url传递的参数，对于POST则解析响应包的主体（request body）
-	//注意:如果没有调用ParseForm方法，下面无法获取表单的数据
+	r.ParseForm()
+
 	t, err := template.ParseFiles("index.html")
 	checkError(w, err)
 
@@ -60,12 +60,29 @@ var emvresult Emvresult
 
 func parse(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
+
 	fmt.Println("idx:", r.Form["idx"])
 	fmt.Println("data:", r.Form["data"])
 
-	output := parseEMV(r.FormValue("idx"), r.FormValue("data"))
+	var output string
+	var tlvdata string
+	trimmed := strings.TrimSpace(r.FormValue("idx"))
+	item, _ := strconv.Atoi(trimmed)
 
-	emvresult = Emvresult{"select:" + r.FormValue("idx"), "0x" + r.FormValue("data"), output}
+	if item < 1 || item > len(emvdecoder) {
+		output = "Please select a valid item!"
+	} else {
+		tlvdata = strings.TrimSpace(r.FormValue("data"))
+		tlvdata = strings.Replace(tlvdata, " ", "", -1)
+
+		if len(tlvdata) != emvdecoder[item-1].tlvdatalen*2 {
+			output = fmt.Sprintf("%s 's length should be %d bytes\n\n", emvdecoder[item-1].Tip1st, emvdecoder[item-1].tlvdatalen)
+		} else {
+			output = parseEMV(item, tlvdata)
+		}
+	}
+
+	emvresult = Emvresult{emvdecoder[item-1].Tip1st, "0x" + tlvdata, output}
 
 	t, err := template.ParseFiles("parse.html")
 	checkError(w, err)
@@ -94,25 +111,9 @@ func main() {
 	}
 }
 
-func parseEMV(idx string, data string) string {
+func parseEMV(item int, tlvdata string) string {
 	//readTerminalLog()
 	var output string
-	trimmed := strings.TrimSpace(idx)
-	item, _ := strconv.Atoi(trimmed)
-
-	if item < 1 || item > len(emvdecoder) {
-		output += "Please select a valid item!"
-		return output
-	}
-
-	tlvdata := strings.TrimSpace(data)
-	tlvdata = strings.Replace(tlvdata, " ", "", -1)
-	//fmt.Printf("tlvdata str value[%s]\n", tlvdata)
-
-	if len(tlvdata) != emvdecoder[item-1].tlvdatalen*2 {
-		output += fmt.Sprintf("wrong data, must be %d bytes, pls re-input\n\n", emvdecoder[item-1].tlvdatalen)
-		return output
-	}
 
 	tlvbytes, _ := hex.DecodeString(tlvdata)
 
