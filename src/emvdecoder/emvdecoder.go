@@ -19,6 +19,12 @@ type Prompt struct {
 	bits       [][8]string
 }
 
+type Emvresult struct {
+	Index  string
+	Data   string
+	Output string
+}
+
 var emvdecoder = [10]Prompt{
 	{1, ("1:AUC"), "Please enter a AUC value: ", 2, make([][8]string, 2)},
 	{2, ("2:TVR"), "Please enter a TVR value: ", 5, make([][8]string, 5)},
@@ -50,15 +56,34 @@ func index(w http.ResponseWriter, r *http.Request) {
 	checkError(w, err)
 }
 
+var emvresult Emvresult
+
 func parse(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	fmt.Println("idx:", r.Form["idx"])
 	fmt.Println("data:", r.Form["data"])
 
-	parseEMV(w, r.FormValue("idx"), r.FormValue("data"))
+	output := parseEMV(r.FormValue("idx"), r.FormValue("data"))
+
+	emvresult = Emvresult{"select:" + r.FormValue("idx"), "0x" + r.FormValue("data"), output}
+
+	t, err := template.ParseFiles("parse.html")
+	checkError(w, err)
+
+	//fmt.Print(emvresult)
+	err = t.Execute(w, emvresult)
+	checkError(w, err)
 }
 
 func main() {
+
+	fileServer := http.StripPrefix("/js/", http.FileServer(http.Dir("js")))
+	http.Handle("/js/", fileServer)
+	fileServer = http.StripPrefix("/css/", http.FileServer(http.Dir("css")))
+	http.Handle("/css/", fileServer)
+	fileServer = http.StripPrefix("/images/", http.FileServer(http.Dir("images")))
+	http.Handle("/images/", fileServer)
+
 	http.HandleFunc("/", index)      //设置访问的路由
 	http.HandleFunc("/parse", parse) //设置访问的路由
 
@@ -69,16 +94,15 @@ func main() {
 	}
 }
 
-func parseEMV(w http.ResponseWriter, idx string, data string) {
+func parseEMV(idx string, data string) string {
 	//readTerminalLog()
-
+	var output string
 	trimmed := strings.TrimSpace(idx)
 	item, _ := strconv.Atoi(trimmed)
 
 	if item < 1 || item > len(emvdecoder) {
-		fmt.Fprintln(w, "Please enter a valid index!")
-		fmt.Fprintln(w, "<a href='/login'>return back</a>")
-		return
+		output += "Please select a valid item!"
+		return output
 	}
 
 	tlvdata := strings.TrimSpace(data)
@@ -86,15 +110,13 @@ func parseEMV(w http.ResponseWriter, idx string, data string) {
 	//fmt.Printf("tlvdata str value[%s]\n", tlvdata)
 
 	if len(tlvdata) != emvdecoder[item-1].tlvdatalen*2 {
-		fmt.Fprintf(w, "wrong data, must be %d bytes\n\n", emvdecoder[item-1].tlvdatalen)
-		return
+		output += fmt.Sprintf("wrong data, must be %d bytes, pls re-input\n\n", emvdecoder[item-1].tlvdatalen)
+		return output
 	}
 
 	tlvbytes, _ := hex.DecodeString(tlvdata)
-	fmt.Fprintln(w, "tlvbytes mem value", tlvbytes)
-	fmt.Fprintf(w, "tlvbytes hex value 0x%02x\n", tlvbytes)
 
-	fmt.Fprintln(w, "-------------------------我是分割线--------------------------")
+	fmt.Printf("-------------------------我是分割线--------------------------\n")
 
 	switch item {
 	case 1:
@@ -118,32 +140,38 @@ func parseEMV(w http.ResponseWriter, idx string, data string) {
 	case 10:
 		emvdecoder[item-1].bits = initCVR()
 	default:
-		return
+		return ""
 	}
 
 	for i, v := range tlvbytes {
 		//fmt.Printf("BYTE[%d] base16 is 0x%02x\n", i, v)
-		fmt.Fprintf(w, "BYTE[%d] %08b\n", i+1, v)
+		output += fmt.Sprintf("BYTE[%d] %08b\n", i+1, v)
 
-		printElement(w, emvdecoder[item-1].bits[i], v)
+		output += printElement(emvdecoder[item-1].bits[i], v)
 	}
 
-	fmt.Fprintln(w, "-------------------------the end---------------------------")
+	fmt.Printf("-------------------------the end--------------------------\n")
+
+	return output
 }
 
-func printElement(w http.ResponseWriter, tvr_elements [8]string, v uint8) {
+func printElement(tvr_elements [8]string, v uint8) string {
+	var output string
 	for j := 0; j < 8; j++ {
 		var shiftNum uint32 = uint32(7 - j)
 		//fmt.Printf("shift[%d]\n", shiftNum)
 		var mask uint8 = 0x01 << shiftNum
 		//fmt.Fprintf(w, "mask", mask)
-		fmt.Fprint(w, j, ":  ")
+		output += fmt.Sprintf("%d: ", j)
 		if v&mask == mask {
-			fmt.Fprintln(w, tvr_elements[j])
+			output += tvr_elements[j]
+			output += "\n"
 		} else {
-			fmt.Fprintln(w, "--------------")
+			output += "--------------\n"
 		}
 	}
+
+	return output
 }
 
 func readTerminalLog() {
