@@ -1,11 +1,13 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
+	_ "odbc/driver"
 	"os"
 	"strconv"
 	"strings"
@@ -56,8 +58,6 @@ func index(w http.ResponseWriter, r *http.Request) {
 	checkError(w, err)
 }
 
-var emvresult Emvresult
-
 func parse(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
@@ -76,13 +76,14 @@ func parse(w http.ResponseWriter, r *http.Request) {
 		tlvdata = strings.Replace(tlvdata, " ", "", -1)
 
 		if len(tlvdata) != emvdecoder[item-1].tlvdatalen*2 {
-			output = fmt.Sprintf("%s 's length should be %d bytes\n\n", emvdecoder[item-1].Tip1st, emvdecoder[item-1].tlvdatalen)
+			output = fmt.Sprintf("%s 's length should be %d bytes\n%s\n\n",
+				emvdecoder[item-1].Tip1st, emvdecoder[item-1].tlvdatalen, emvdecoder[item-1].Tip2nd)
 		} else {
 			output = parseEMV(item, tlvdata)
 		}
 	}
 
-	emvresult = Emvresult{emvdecoder[item-1].Tip1st, "0x" + tlvdata, output}
+	emvresult := Emvresult{emvdecoder[item-1].Tip1st, "0x" + tlvdata, output}
 
 	t, err := template.ParseFiles("parse.html")
 	checkError(w, err)
@@ -92,7 +93,38 @@ func parse(w http.ResponseWriter, r *http.Request) {
 	checkError(w, err)
 }
 
+func saveDB() {
+	conn, err := sql.Open("odbc", "driver={Microsoft Access Driver (*.mdb)};dbq=d:\\test.mdb")
+	if err != nil {
+		fmt.Println("Connecting Error")
+		return
+	}
+	defer conn.Close()
+	stmt, err := conn.Prepare("select * from test")
+	if err != nil {
+		fmt.Println("Query Error")
+		return
+	}
+	defer stmt.Close()
+	row, err := stmt.Query()
+	if err != nil {
+		fmt.Println("Query Error")
+		return
+	}
+	defer row.Close()
+	for row.Next() {
+		var id int
+		var name string
+		if err := row.Scan(&id, &name); err == nil {
+			fmt.Println(id, name)
+		}
+	}
+	fmt.Printf("%s\n", "finish"writeTerminalLog(str)
+	return
+}
+
 func main() {
+	saveDB()
 
 	fileServer := http.StripPrefix("/js/", http.FileServer(http.Dir("js")))
 	http.Handle("/js/", fileServer)
