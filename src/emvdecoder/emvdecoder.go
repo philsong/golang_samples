@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"runtime/debug"
 	"strconv"
 	"strings"
 )
@@ -40,13 +41,25 @@ var emvdecoder = [10]Prompt{
 }
 
 func checkError(w http.ResponseWriter, err error) {
+	fmt.Println("error: ")
 	if err != nil {
-		fmt.Fprintf(w, "Fatal error ", err.Error())
-		os.Exit(1)
+		fmt.Println("Fatal error ", err.Error())
+		debug.PrintStack()
+		//os.Exit(1)
 	}
 }
 
 func index(w http.ResponseWriter, r *http.Request) {
+	println("Request ", r.URL.Path, " from ", r.RemoteAddr)
+	//   path := r.URL.Path[1:]
+	path := "." + r.URL.Path
+
+	fmt.Println("path", path)
+	if path == "./favicon.ico" {
+		http.NotFound(w, r)
+		return
+	}
+
 	r.ParseForm()
 
 	t, err := template.ParseFiles("index.html")

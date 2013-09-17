@@ -22,7 +22,7 @@ func main() {
 	} else {
 		ipaddr = strings.TrimSpace(strings.Split(conn.LocalAddr().String(), ":")[0])
 	}
-	fmt.Printf("others can access your directly %s via open http://%s:8123\n in internet browser, report bugs to philsong@techtrex.com", file, ipaddr)
+	fmt.Printf("Directory [%s] can be accessed via http://%s:8123\n in internet browser, report bugs to philsong@techtrex.com", file, ipaddr)
 	defer conn.Close()
 
 	http.ListenAndServe(":8123", nil)
