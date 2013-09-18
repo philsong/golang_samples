@@ -41,7 +41,6 @@ var emvdecoder = [10]Prompt{
 }
 
 func checkError(w http.ResponseWriter, err error) {
-	fmt.Println("error: ")
 	if err != nil {
 		fmt.Println("Fatal error ", err.Error())
 		debug.PrintStack()
@@ -54,7 +53,6 @@ func index(w http.ResponseWriter, r *http.Request) {
 	//   path := r.URL.Path[1:]
 	path := "." + r.URL.Path
 
-	fmt.Println("path", path)
 	if path == "./favicon.ico" {
 		http.NotFound(w, r)
 		return
@@ -108,12 +106,10 @@ func parse(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	fileServer := http.StripPrefix("/js/", http.FileServer(http.Dir("js")))
-	http.Handle("/js/", fileServer)
-	fileServer = http.StripPrefix("/css/", http.FileServer(http.Dir("css")))
-	http.Handle("/css/", fileServer)
-	fileServer = http.StripPrefix("/images/", http.FileServer(http.Dir("images")))
-	http.Handle("/images/", fileServer)
+	http.Handle("/js/", http.StripPrefix("/js/", http.FileServer(http.Dir("./js/"))))
+	http.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("./css/"))))
+	http.Handle("/images/", http.StripPrefix("/images/", http.FileServer(http.Dir("./images/"))))
+	http.Handle("/icclogs/", http.StripPrefix("/icclogs/", http.FileServer(http.Dir("./logs/"))))
 
 	http.HandleFunc("/", index)      //设置访问的路由
 	http.HandleFunc("/parse", parse) //设置访问的路由
@@ -131,7 +127,7 @@ func parseEMV(item int, tlvdata string) string {
 
 	tlvbytes, _ := hex.DecodeString(tlvdata)
 
-	fmt.Printf("-------------------------我是分割线--------------------------\n")
+	fmt.Printf("-------------------------start--------------------------\n")
 
 	switch item {
 	case 1:
