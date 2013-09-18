@@ -1,15 +1,24 @@
+/*
+File      : emvdecoder.go
+Author    : Philsong
+E-Mail    : 78623269@qq.com
+*/
 package main
 
 import (
 	"encoding/hex"
 	"fmt"
 	"html/template"
+	"io"
+	//"io/ioutil"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Prompt struct {
@@ -48,26 +57,8 @@ func checkError(w http.ResponseWriter, err error) {
 	}
 }
 
-func index(w http.ResponseWriter, r *http.Request) {
+func parseHandle(w http.ResponseWriter, r *http.Request) {
 	println("Request ", r.URL.Path, " from ", r.RemoteAddr)
-	//   path := r.URL.Path[1:]
-	path := "." + r.URL.Path
-
-	if path == "./favicon.ico" {
-		http.NotFound(w, r)
-		return
-	}
-
-	r.ParseForm()
-
-	t, err := template.ParseFiles("index.html")
-	checkError(w, err)
-
-	err = t.Execute(w, emvdecoder)
-	checkError(w, err)
-}
-
-func parse(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
 	fmt.Println("idx:", r.Form["idx"])
@@ -105,16 +96,131 @@ func parse(w http.ResponseWriter, r *http.Request) {
 	checkError(w, err)
 }
 
+var indexTemplate = template.Must(template.ParseFiles("index.html"))
+var uploadTemplate = template.Must(template.ParseFiles("upload.html"))
+
+func indexHandle(w http.ResponseWriter, r *http.Request) {
+	println("Request ", r.URL.Path, " from ", r.RemoteAddr)
+	//   path := r.URL.Path[1:]
+	path := "." + r.URL.Path
+
+	if path == "./favicon.ico" {
+		http.NotFound(w, r)
+		return
+	}
+
+	r.ParseForm()
+
+	if err := indexTemplate.Execute(w, emvdecoder); err != nil {
+		log.Fatal("Execute: ", err.Error())
+		checkError(w, err)
+		return
+	}
+}
+
+func uploadHandle(w http.ResponseWriter, r *http.Request) {
+
+	if r.Method == "GET" {
+		if err := uploadTemplate.Execute(w, nil); err != nil {
+			log.Fatal("Execute: ", err.Error())
+			checkError(w, err)
+			return
+		}
+	} else {
+		file, header, err := r.FormFile("file")
+		if err != nil {
+			log.Fatal("FormFile: ", err.Error())
+			return
+		}
+		defer func() {
+			if err := file.Close(); err != nil {
+				log.Fatal("Close: ", err.Error())
+				return
+			}
+		}()
+
+		const layout = "2013-Feb-03"
+		fileremote := "uploaddir/" + header.Filename + "-" + time.Now().Format(layout)
+
+		for {
+			f, err := os.Open(fileremote)
+			if err != nil && os.IsNotExist(err) {
+				fmt.Printf("%s file does not exist!\n", fileremote)
+
+				f, err = os.Create(fileremote)
+				defer f.Close()
+
+				io.Copy(f, file)
+				/*
+					bytes, err := ioutil.ReadAll(file)
+					if err != nil {
+						log.Fatal("ReadAll: ", err.Error())
+						return
+					}
+
+					w.Write(bytes)
+				*/
+				break
+			} else {
+				fmt.Printf("%s file exist!\n", fileremote)
+				r := rand.New(rand.NewSource(time.Now().UnixNano()))
+				fmt.Println(r.Intn(10000))
+				fileremote += strconv.Itoa(r.Intn(10000))
+			}
+		}
+	}
+}
+
+/*
+package main
+import (
+        "fmt"
+        "net/http"
+        "log"
+)
+type Counter struct {
+        n int
+}
+func (ctr *Counter) ServeHTTP(c http.ResponseWriter, req *http.Request) {
+      ctr.n++
+      fmt.Fprintf(c, "counter = %d\n", ctr.n)
+}
 func main() {
+        http.Handle("/counter", new(Counter))
+        log.Fatal("ListenAndServe: ", http.ListenAndServe(":12345", nil))
+}
+*/
+type TraceHandler struct {
+	h http.Handler
+	n int
+}
+
+func (r TraceHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	r.n++
+	fmt.Printf("counter = %d\n", r.n) //why counter always zero
+	println("get", req.URL.Path, " from ", req.RemoteAddr)
+	r.h.ServeHTTP(w, req)
+}
+
+func main() {
+	port := "9090" //Default port
+	if len(os.Args) > 1 {
+		port = strings.Join(os.Args[1:2], "")
+	}
+
 	http.Handle("/js/", http.StripPrefix("/js/", http.FileServer(http.Dir("./js/"))))
 	http.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("./css/"))))
 	http.Handle("/images/", http.StripPrefix("/images/", http.FileServer(http.Dir("./images/"))))
-	http.Handle("/icclogs/", http.StripPrefix("/icclogs/", http.FileServer(http.Dir("./logs/"))))
 
-	http.HandleFunc("/", index)      //设置访问的路由
-	http.HandleFunc("/parse", parse) //设置访问的路由
+	h := http.StripPrefix("/icclogs/", http.FileServer(http.Dir("./logs/")))
+	http.Handle("/icclogs/", TraceHandler{h, 0})
 
-	err := http.ListenAndServe(":9090", nil) //设置监听的端口
+	http.HandleFunc("/", indexHandle)      //设置访问的路由
+	http.HandleFunc("/parse", parseHandle) //设置访问的路由
+	http.HandleFunc("/upload", uploadHandle)
+
+	println("Listening on port ", port, "...")
+	err := http.ListenAndServe(":"+port, nil) //设置监听的端口
 
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
