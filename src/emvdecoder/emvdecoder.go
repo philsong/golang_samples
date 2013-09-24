@@ -112,7 +112,7 @@ func indexHandle(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
 	if err := indexTemplate.Execute(w, emvdecoder); err != nil {
-		log.Fatal("Execute: ", err.Error())
+		//	log.Fatal("Execute: ", err.Error())
 		checkError(w, err)
 		return
 	}
@@ -122,7 +122,7 @@ func uploadHandle(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "GET" {
 		if err := uploadTemplate.Execute(w, nil); err != nil {
-			log.Fatal("Execute: ", err.Error())
+			//		log.Fatal("Execute: ", err.Error())
 			checkError(w, err)
 			return
 		}
@@ -279,13 +279,14 @@ func printElement(tvr_elements [8]string, v uint8) string {
 		//fmt.Printf("shift[%d]\n", shiftNum)
 		var mask uint8 = 0x01 << shiftNum
 		//fmt.Fprintf(w, "mask", mask)
-		output += fmt.Sprintf("%d: ", j)
+		output += fmt.Sprintf("%d: ", 8-j)
 		if v&mask == mask {
-			output += tvr_elements[j]
-			output += "\n"
+			output += "[***]"
 		} else {
-			output += "--------------\n"
+			output += "[   ]"
 		}
+		output += tvr_elements[j]
+		output += "\n"
 	}
 
 	return output
