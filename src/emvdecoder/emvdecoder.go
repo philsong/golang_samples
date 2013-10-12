@@ -179,7 +179,7 @@ type TraceHandler struct {
 func (r *TraceHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.n++
 	fmt.Printf("counter = %d\n", r.n) //why counter always zero
-	println("get", req.URL.Path, " from ", req.RemoteAddr)
+	fmt.Println("get", req.URL.Path, " from ", req.RemoteAddr)
 	r.h.ServeHTTP(w, req)
 }
 
@@ -194,7 +194,7 @@ func main() {
 	http.Handle("/images/", http.StripPrefix("/images/", http.FileServer(http.Dir("./images/"))))
 
 	h := http.StripPrefix("/icclogs/", http.FileServer(http.Dir("./logs/")))
-	http.Handle("/icclogs/", &TraceHandler{h, 0})
+	http.Handle("/icclogs/", &TraceHandler{h: h, n: 0})
 
 	http.HandleFunc("/", indexHandle)      //设置访问的路由
 	http.HandleFunc("/parse", parseHandle) //设置访问的路由
