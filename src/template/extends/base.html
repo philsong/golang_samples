@@ -1,0 +1,25 @@
+{{define "base"}}
+<!DOCTYPE html>
+<html>
+    <body>
+
+      <header>
+        <h1>Title of {{.}}</h1>
+        <nav>
+          <ul>
+            <li><a href="hoge">Hoge</a></li>
+            <li><a href="piyo">Piyo</a></li>
+          </ul>
+        </nav>
+      </header>
+
+      <article id="content">
+        {{template "content"}}
+      </article>
+
+      <footer>
+        &copy; Copyright 2013 by golang-samples.
+      </footer>
+    </body>
+</html>
+{{end}}

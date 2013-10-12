@@ -1,3 +1,13 @@
+/**
+ * Mifare reader/writer
+ *
+ * An open source Mifare reader/writer development library for Golang
+ *
+ * @package		mif
+ * @author		Philsong
+ * @e-Mail    : 78623269@qq.com
+ * @since		Version 1.0
+ */
 package mif
 
 import (
@@ -32,14 +42,10 @@ func init() {
 func FreeLib() {
 	fmt.Print("Ending\n")
 	syscall.FreeLibrary(miflib)
-	syscall.FreeLibrary(kernel32)
 	syscall.FreeLibrary(user32)
 }
 
 var (
-	kernel32, _        = syscall.LoadLibrary("kernel32.dll")
-	getModuleHandle, _ = syscall.GetProcAddress(kernel32, "GetModuleHandleW")
-
 	user32, _     = syscall.LoadLibrary("user32.dll")
 	messageBox, _ = syscall.GetProcAddress(user32, "MessageBoxW")
 
@@ -101,7 +107,6 @@ func MessageBox(text string) (result int) {
 	return MessageBoxEx("alert", text, MB_YESNOCANCEL)
 }
 func HVD_OpenPort(CommNumber byte) (handle uintptr) {
-	fmt.Printf("cHVD_OpenPort=%08x\n", cHVD_OpenPort)
 	var nargs uintptr = 1
 	if ret, _, callErr := syscall.Syscall(uintptr(cHVD_OpenPort),
 		nargs,
@@ -197,16 +202,6 @@ func MIF_Write(handle uintptr,
 		abort("Call MIF_Write", callErr)
 	} else {
 		result = ret
-	}
-	return
-}
-
-func GetModuleHandle() (handle uintptr) {
-	var nargs uintptr = 0
-	if ret, _, callErr := syscall.Syscall(uintptr(getModuleHandle), nargs, 0, 0, 0); callErr != 0 {
-		abort("Call GetModuleHandle", callErr)
-	} else {
-		handle = ret
 	}
 	return
 }
