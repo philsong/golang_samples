@@ -171,31 +171,12 @@ func uploadHandle(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-/*
-package main
-import (
-        "fmt"
-        "net/http"
-        "log"
-)
-type Counter struct {
-        n int
-}
-func (ctr *Counter) ServeHTTP(c http.ResponseWriter, req *http.Request) {
-      ctr.n++
-      fmt.Fprintf(c, "counter = %d\n", ctr.n)
-}
-func main() {
-        http.Handle("/counter", new(Counter))
-        log.Fatal("ListenAndServe: ", http.ListenAndServe(":12345", nil))
-}
-*/
 type TraceHandler struct {
 	h http.Handler
 	n int
 }
 
-func (r TraceHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (r *TraceHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.n++
 	fmt.Printf("counter = %d\n", r.n) //why counter always zero
 	println("get", req.URL.Path, " from ", req.RemoteAddr)
@@ -213,7 +194,7 @@ func main() {
 	http.Handle("/images/", http.StripPrefix("/images/", http.FileServer(http.Dir("./images/"))))
 
 	h := http.StripPrefix("/icclogs/", http.FileServer(http.Dir("./logs/")))
-	http.Handle("/icclogs/", TraceHandler{h, 0})
+	http.Handle("/icclogs/", &TraceHandler{h, 0})
 
 	http.HandleFunc("/", indexHandle)      //设置访问的路由
 	http.HandleFunc("/parse", parseHandle) //设置访问的路由
