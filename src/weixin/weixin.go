@@ -30,10 +30,9 @@ type Request struct {
 type Response struct {
 	ToUserName   string `xml:"xml>ToUserName"`
 	FromUserName string `xml:"xml>FromUserName"`
-	CreateTime   string `xml:"xml>CreateTime"`
+	CreateTime   time.Duration
 	MsgType      string `xml:"xml>MsgType"`
 	Content      string `xml:"xml>Content"`
-	MsgId        int    `xml:"xml>MsgId"`
 }
 
 func str2sha1(data string) string {
@@ -52,7 +51,7 @@ func action(w http.ResponseWriter, r *http.Request) {
 	xml.Unmarshal(postedMsg, &v)
 	fmt.Println(v)
 	if v.MsgType == "text" {
-		v := Request{v.ToUserName, v.FromUserName, v.CreateTime, v.MsgType, v.Content, v.MsgId}
+		v := Response{v.FromUserName, v.ToUserName, time.Second, v.MsgType, v.Content}
 		output, err := xml.MarshalIndent(v, " ", " ")
 		if err != nil {
 			fmt.Printf("error:%v\n", err)
@@ -62,7 +61,7 @@ func action(w http.ResponseWriter, r *http.Request) {
 	} else if v.MsgType == "event" {
 		Content := `"欢迎关注
 								我的微信"`
-		v := Request{v.ToUserName, v.FromUserName, v.CreateTime, v.MsgType, Content, v.MsgId}
+		v := Response{v.ToUserName, v.FromUserName, time.Second, v.MsgType, Content}
 		output, err := xml.MarshalIndent(v, " ", " ")
 		if err != nil {
 			fmt.Printf("error:%v\n", err)
