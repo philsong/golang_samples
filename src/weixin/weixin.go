@@ -88,7 +88,7 @@ func checkSignature(w http.ResponseWriter, r *http.Request) {
 func main() {
 	http.HandleFunc("/check", checkSignature)
 	http.HandleFunc("/", action)
-	port := 80
+	port := "80"
 	println("Listening on port ", port, "...")
 	err := http.ListenAndServe(":"+port, nil) //设置监听的端口
 
