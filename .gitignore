@@ -10,4 +10,8 @@
 *.exe~
 *.zip*
 *.a
+CVS
+SVN
+dmsweb
+
 
