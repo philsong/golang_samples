@@ -28,11 +28,11 @@ type Request struct {
 }
 
 type Response struct {
-	ToUserName   string
-	FromUserName string `xml:"xml>FromUserName"`
-	CreateTime   time.Duration
-	MsgType      string `xml:"xml>MsgType"`
-	Content      string `xml:"xml>Content"`
+	ToUserName   string        `xml:"xml>ToUserName"`
+	FromUserName string        `xml:"xml>FromUserName"`
+	CreateTime   time.Duration `xml:"xml>CreateTime"`
+	MsgType      string        `xml:"xml>MsgType"`
+	Content      string        `xml:"xml>Content"`
 }
 
 func str2sha1(data string) string {
