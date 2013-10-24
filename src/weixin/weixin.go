@@ -50,12 +50,14 @@ func action(w http.ResponseWriter, r *http.Request) {
 	r.Body.Close()
 	v := Request{}
 	xml.Unmarshal(postedMsg, &v)
+	fmt.Println(v)
 	if v.MsgType == "text" {
 		v := Request{v.ToUserName, v.FromUserName, v.CreateTime, v.MsgType, v.Content, v.MsgId}
 		output, err := xml.MarshalIndent(v, " ", " ")
 		if err != nil {
 			fmt.Printf("error:%v\n", err)
 		}
+		fmt.Println(string(output))
 		fmt.Fprintf(w, string(output))
 	} else if v.MsgType == "event" {
 		Content := `"欢迎关注
@@ -65,29 +67,35 @@ func action(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			fmt.Printf("error:%v\n", err)
 		}
+		fmt.Println(string(output))
 		fmt.Fprintf(w, string(output))
 	}
 }
 
 func checkSignature(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
-	var token string = "gostock"
-	var signature string = strings.Join(r.Form["signature"], "")
-	var timestamp string = strings.Join(r.Form["timestamp"], "")
-	var nonce string = strings.Join(r.Form["nonce"], "")
-	var echostr string = strings.Join(r.Form["echostr"], "")
-	tmps := []string{token, timestamp, nonce}
-	sort.Strings(tmps)
-	tmpStr := tmps[0] + tmps[1] + tmps[2]
-	tmp := str2sha1(tmpStr)
-	if tmp == signature {
-		fmt.Fprintf(w, echostr)
+	if r.Method == "GET" {
+		r.ParseForm()
+		var token string = "gostock"
+		var signature string = strings.Join(r.Form["signature"], "")
+		var timestamp string = strings.Join(r.Form["timestamp"], "")
+		var nonce string = strings.Join(r.Form["nonce"], "")
+		var echostr string = strings.Join(r.Form["echostr"], "")
+		tmps := []string{token, timestamp, nonce}
+		sort.Strings(tmps)
+		tmpStr := tmps[0] + tmps[1] + tmps[2]
+		tmp := str2sha1(tmpStr)
+		if tmp == signature {
+			fmt.Fprintf(w, echostr)
+		}
+	} else {
+		action(w, r)
 	}
+
 }
 
 func main() {
 	http.HandleFunc("/check", checkSignature)
-	http.HandleFunc("/", action)
+	//http.HandleFunc("/", action)
 	port := "80"
 	println("Listening on port ", port, "...")
 	err := http.ListenAndServe(":"+port, nil) //设置监听的端口
