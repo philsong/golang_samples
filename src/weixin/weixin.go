@@ -28,7 +28,7 @@ type Request struct {
 }
 
 type Response struct {
-	ToUserName   string `xml:"xml>ToUserName"`
+	ToUserName   string
 	FromUserName string `xml:"xml>FromUserName"`
 	CreateTime   time.Duration
 	MsgType      string `xml:"xml>MsgType"`
@@ -52,7 +52,7 @@ func action(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(v)
 	if v.MsgType == "text" {
 		v := Response{v.FromUserName, v.ToUserName, time.Second, v.MsgType, v.Content}
-		output, err := xml.MarshalIndent(v, " ", " ")
+		output, err := xml.Marshal(v)
 		if err != nil {
 			fmt.Printf("error:%v\n", err)
 		}
@@ -62,7 +62,7 @@ func action(w http.ResponseWriter, r *http.Request) {
 		Content := `"欢迎关注
 								我的微信"`
 		v := Response{v.ToUserName, v.FromUserName, time.Second, v.MsgType, Content}
-		output, err := xml.MarshalIndent(v, " ", " ")
+		output, err := xml.Marshal(v)
 		if err != nil {
 			fmt.Printf("error:%v\n", err)
 		}
