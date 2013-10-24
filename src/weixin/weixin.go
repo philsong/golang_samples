@@ -71,7 +71,7 @@ func action(w http.ResponseWriter, r *http.Request) {
 
 func checkSignature(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
-	var token string = "你的token"
+	var token string = "gostock"
 	var signature string = strings.Join(r.Form["signature"], "")
 	var timestamp string = strings.Join(r.Form["timestamp"], "")
 	var nonce string = strings.Join(r.Form["nonce"], "")
