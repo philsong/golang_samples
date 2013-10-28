@@ -18,7 +18,7 @@ type User struct {
 // 一如既往的main方法
 func main() {
 	// 格式有点怪, @tcp 是指网络协议(难道支持udp?), 然后是域名和端口
-	db, e := sql.Open("mysql", "root:@tcp(192.168.7.15:3306)/mysql?charset=utf8")
+	db, e := sql.Open("mysql", "root:@tcp(192.168.7.15:3306)/5000w?charset=utf8")
 	if e != nil { //如果连接出错,e将不是nil的
 		print("ERROR?")
 		return
@@ -27,7 +27,7 @@ func main() {
 	defer db.Close()
 
 	// 提醒一句, 运行到这里, 并不代表数据库连接是完全OK的, 因为发送第一条SQL才会校验密码 汗~!
-	rows, e := db.Query("select user,password,host from mysql.user")
+	rows, e := db.Query("SELECT Address,CtfId,Gender FROM `最后5000` limit 1")
 	if e != nil {
 		fmt.Printf("query error!!%v\n", e)
 		return
