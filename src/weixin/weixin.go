@@ -6,6 +6,7 @@
  *@青岛程序员 微信订阅号	qdprogrammer
  *@Golang 微信订阅号	gostock
  *@关于青岛程序员的技术，创业，生活 分享。
+ *@开源 https://github.com/philsong/
  */
 package main
 
