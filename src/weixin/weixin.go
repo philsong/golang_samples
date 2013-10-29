@@ -1,7 +1,11 @@
 /*
- *@author widuu
- *@time 2013-7-19
- *@go语言实现公众平台
+ *@author 菠菜君
+ *@Version 0.2
+ *@time 2013-10-29
+ *@go语言实现微信公众平台
+ *@青岛程序员 微信订阅号	qdprogrammer
+ *@Golang 微信订阅号	gostock
+ *@关于青岛程序员的技术，创业，生活 分享。
  */
 package main
 
@@ -18,82 +22,137 @@ import (
 	"time"
 )
 
-type Request struct {
+const (
+	TOKEN    = "gostock"
+	Text     = "text"
+	Location = "location"
+	Image    = "image"
+	Link     = "link"
+	Event    = "event"
+	Music    = "music"
+	News     = "news"
+)
+
+type msgBase struct {
 	ToUserName   string
 	FromUserName string
 	CreateTime   time.Duration
 	MsgType      string
 	Content      string
-	MsgId        int
+}
+
+type Request struct {
+	XMLName                xml.Name `xml:"xml"`
+	msgBase                         // base struct
+	Location_X, Location_Y float32
+	Scale                  int
+	Label                  string
+	PicUrl                 string
+	MsgId                  int
 }
 
 type Response struct {
-	ToUserName   string        `xml:"xml>ToUserName"`
-	FromUserName string        `xml:"xml>FromUserName"`
-	CreateTime   time.Duration `xml:"xml>CreateTime"`
-	MsgType      string        `xml:"xml>MsgType"`
-	Content      string        `xml:"xml>Content"`
+	XMLName xml.Name `xml:"xml"`
+	msgBase
+	ArticleCount int     `xml:",omitempty"`
+	Articles     []*item `xml:"Articles>item,omitempty"`
+	FuncFlag     int
 }
 
-func str2sha1(data string) string {
-	t := sha1.New()
-	io.WriteString(t, data)
-	return fmt.Sprintf("%x", t.Sum(nil))
+type item struct {
+	XMLName     xml.Name `xml:"item"`
+	Title       string
+	Description string
+	PicUrl      string
+	Url         string
 }
 
-func action(w http.ResponseWriter, r *http.Request) {
-	postedMsg, err := ioutil.ReadAll(r.Body)
+func weixinEvent(w http.ResponseWriter, r *http.Request) {
+	if weixinCheckSignature(w, r) == false {
+		fmt.Println("auth failed, attached?")
+		return
+	}
+
+	fmt.Println("auth success, parse POST")
+
+	defer r.Body.Close()
+
+	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Fatal(err)
+		return
 	}
-	r.Body.Close()
-	v := Request{}
-	xml.Unmarshal(postedMsg, &v)
-	fmt.Println(v)
-	if v.MsgType == "text" {
-		v := Response{v.FromUserName, v.ToUserName, time.Second, v.MsgType, v.Content}
-		output, err := xml.Marshal(v)
-		if err != nil {
-			fmt.Printf("error:%v\n", err)
+
+	fmt.Println(string(body))
+	var wreq *Request
+	if wreq, err = DecodeRequest(body); err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	wresp, err := dealwith(wreq)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	data, err := wresp.Encode()
+	if err != nil {
+		fmt.Printf("error:%v\n", err)
+		return
+	}
+
+	fmt.Println(string(data))
+	fmt.Fprintf(w, string(data))
+	return
+}
+
+func dealwith(req *Request) (resp *Response, err error) {
+	resp = NewResponse()
+	resp.ToUserName = req.FromUserName
+	resp.FromUserName = req.ToUserName
+	resp.MsgType = Text
+
+	if req.MsgType == Event {
+		if req.Content == "subscribe" {
+			resp.Content = "欢迎关注微信订阅号qdprogrammer, 分享青岛程序员的技术，创业，生活。"
+			return resp, nil
 		}
-		fmt.Println(string(output))
-		fmt.Fprintf(w, string(output))
-	} else if v.MsgType == "event" {
-		Content := `"欢迎关注
-								我的微信"`
-		v := Response{v.ToUserName, v.FromUserName, time.Second, v.MsgType, Content}
-		output, err := xml.Marshal(v)
-		if err != nil {
-			fmt.Printf("error:%v\n", err)
+	}
+
+	if req.MsgType == Text {
+		if strings.Trim(strings.ToLower(req.Content), " ") == "help" {
+			resp.Content = "欢迎关注微信订阅号qdprogrammer, 分享青岛程序员的技术，创业，生活。"
+			return resp, nil
 		}
-		fmt.Println(string(output))
-		fmt.Fprintf(w, string(output))
+		resp.Content = "亲，菠菜君已经收到您的消息, 将尽快回复您."
+	} else {
+		resp.Content = "暂时还不支持其他的类型"
+	}
+	return resp, nil
+}
+
+func weixinAuth(w http.ResponseWriter, r *http.Request) {
+	if weixinCheckSignature(w, r) == true {
+		var echostr string = strings.Join(r.Form["echostr"], "")
+		fmt.Fprintf(w, echostr)
 	}
 }
 
-func checkSignature(w http.ResponseWriter, r *http.Request) {
+func weixinHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
-		r.ParseForm()
-		var token string = "gostock"
-		var signature string = strings.Join(r.Form["signature"], "")
-		var timestamp string = strings.Join(r.Form["timestamp"], "")
-		var nonce string = strings.Join(r.Form["nonce"], "")
-		var echostr string = strings.Join(r.Form["echostr"], "")
-		tmps := []string{token, timestamp, nonce}
-		sort.Strings(tmps)
-		tmpStr := tmps[0] + tmps[1] + tmps[2]
-		tmp := str2sha1(tmpStr)
-		if tmp == signature {
-			fmt.Fprintf(w, echostr)
-		}
+		fmt.Println("GET begin...")
+		weixinAuth(w, r)
+		fmt.Println("GET END...")
 	} else {
-		action(w, r)
+		fmt.Println("POST begin...")
+		weixinEvent(w, r)
+		fmt.Println("POST END...")
 	}
-
 }
 
 func main() {
-	http.HandleFunc("/check", checkSignature)
+	http.HandleFunc("/check", weixinHandler)
 	//http.HandleFunc("/", action)
 	port := "80"
 	println("Listening on port ", port, "...")
@@ -102,4 +161,48 @@ func main() {
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
+}
+
+func str2sha1(data string) string {
+	t := sha1.New()
+	io.WriteString(t, data)
+	return fmt.Sprintf("%x", t.Sum(nil))
+}
+
+func weixinCheckSignature(w http.ResponseWriter, r *http.Request) bool {
+	r.ParseForm()
+	fmt.Println(r.Form)
+
+	var signature string = strings.Join(r.Form["signature"], "")
+	var timestamp string = strings.Join(r.Form["timestamp"], "")
+	var nonce string = strings.Join(r.Form["nonce"], "")
+	tmps := []string{TOKEN, timestamp, nonce}
+	sort.Strings(tmps)
+	tmpStr := tmps[0] + tmps[1] + tmps[2]
+	tmp := str2sha1(tmpStr)
+	if tmp == signature {
+		return true
+	}
+	return false
+}
+
+func DecodeRequest(data []byte) (req *Request, err error) {
+	req = &Request{}
+	if err = xml.Unmarshal(data, req); err != nil {
+		return
+	}
+	req.CreateTime *= time.Second
+	return
+}
+
+func NewResponse() (resp *Response) {
+	resp = &Response{}
+	resp.CreateTime = time.Duration(time.Now().Unix())
+	return
+}
+
+func (resp Response) Encode() (data []byte, err error) {
+	resp.CreateTime = time.Second
+	data, err = xml.Marshal(resp)
+	return
 }
