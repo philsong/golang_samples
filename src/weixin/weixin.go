@@ -2,7 +2,7 @@
  *@author 菠菜君
  *@Version 0.2
  *@time 2013-10-29
- *@go语言实现微信公众平台
+ *@golang实现微信公众平台API引擎开发模式
  *@青岛程序员 微信订阅号	qdprogrammer
  *@Golang 微信订阅号	gostock
  *@关于青岛程序员的技术，创业，生活 分享。
