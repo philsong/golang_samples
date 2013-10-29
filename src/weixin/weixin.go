@@ -203,7 +203,7 @@ func NewResponse() (resp *Response) {
 }
 
 func (resp Response) Encode() (data []byte, err error) {
-	resp.CreateTime = time.Second
+	resp.CreateTime = time.Duration(time.Now().Unix())
 	data, err = xml.Marshal(resp)
 	return
 }
