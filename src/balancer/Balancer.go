@@ -21,6 +21,7 @@ var roundRobin = flag.Bool("r", false, "use round-robin scheduling")
 
 // Simulation of some work: just sleep for a while and report how long.
 func op() int {
+
 	n := rand.Int63n(1e9)
 	time.Sleep(time.Duration(nWorker * n))
 	return int(n)
@@ -161,6 +162,9 @@ func (b *Balancer) completed(w *Worker) {
 }
 
 func main() {
+	fmt.Println(1e9)
+	n := rand.Int63n(1e9)
+	fmt.Println(n)
 	flag.Parse()
 	work := make(chan Request)
 	for i := 0; i < nRequester; i++ {

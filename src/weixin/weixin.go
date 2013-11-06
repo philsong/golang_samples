@@ -127,6 +127,18 @@ func dealwith(req *Request) (resp *Response, err error) {
 			return resp, nil
 		}
 		resp.Content = "亲，菠菜君已经收到您的消息, 将尽快回复您."
+	} else if req.MsgType == Image {
+
+		var a item
+		a.Description = "雅蠛蝶。。。^_^^_^1024你懂的"
+		a.Title = "雅蠛蝶图文测试"
+		a.PicUrl = "http://static.yaliam.com/gwz.jpg"
+		a.Url = "http://blog.csdn.net/songbohr"
+
+		resp.MsgType = News
+		resp.ArticleCount = 1
+		resp.Articles = append(resp.Articles, &a)
+		resp.FuncFlag = 1
 	} else {
 		resp.Content = "暂时还不支持其他的类型"
 	}
