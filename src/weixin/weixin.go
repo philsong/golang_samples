@@ -1,7 +1,7 @@
 /*
  *@author 菠菜君
- *@Version 0.2
- *@time 2013-10-29
+ *@Version 0.3
+ *@Update time 2013-11-06
  *@golang实现微信公众平台API引擎开发模式
  *@青岛程序员 微信订阅号	qdprogrammer
  *@Golang 微信订阅号	gostock
@@ -154,21 +154,16 @@ func weixinAuth(w http.ResponseWriter, r *http.Request) {
 
 func weixinHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
-		fmt.Println("GET begin...")
 		weixinAuth(w, r)
-		fmt.Println("GET END...")
 	} else {
-		fmt.Println("POST begin...")
 		weixinEvent(w, r)
-		fmt.Println("POST END...")
 	}
 }
 
 func main() {
 	http.HandleFunc("/check", weixinHandler)
-	//http.HandleFunc("/", action)
 	port := "80"
-	println("Listening on port ", port, "...")
+	println("Weixin Listening on port ", port, "...")
 	err := http.ListenAndServe(":"+port, nil) //设置监听的端口
 
 	if err != nil {
