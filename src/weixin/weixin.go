@@ -117,16 +117,18 @@ func dealwith(req *Request) (resp *Response, err error) {
 	if req.MsgType == Event {
 		if req.Content == "subscribe" {
 			resp.Content = "欢迎关注微信订阅号qdprogrammer, 分享青岛程序员的技术，创业，生活。"
-			return resp, nil
 		}
-	}
-
-	if req.MsgType == Text {
+	} else if req.MsgType == Text {
 		if strings.Trim(strings.ToLower(req.Content), " ") == "help" {
 			resp.Content = "欢迎关注微信订阅号qdprogrammer, 分享青岛程序员的技术，创业，生活。"
-			return resp, nil
+		} else if strings.Trim(strings.ToLower(req.Content), " ") == "会员卡" {
+			//todo: bind mobile to mysql database.
+			//if req.FromUserName in db, then alread bind
+			//else req.FromUserName not in bd, then remind to bind
+			resp.Content = "发送手机号绑定会员卡。"
+		} else {
+			resp.Content = "亲，菠菜君已经收到您的消息, 将尽快回复您."
 		}
-		resp.Content = "亲，菠菜君已经收到您的消息, 将尽快回复您."
 	} else if req.MsgType == Image {
 
 		var a item
